@@ -9,11 +9,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:hacker_new/main.dart';
+import '../lib/src/hn_bloc.dart';
 
 void main() {
   testWidgets('Expansion tile', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const BasicApp());
+    await tester.pumpWidget(
+      // This line I will test latter
+      BasicApp(bloc: HackerNewsBloc()),
+    );
 
     expect(find.byType(IconButton), findsNothing);
     expect(find.byType(ExpansionTile), findsWidgets);

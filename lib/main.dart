@@ -1,20 +1,30 @@
+import 'dart:collection';
+
 import 'package:flutter/material.dart';
 import 'package:hacker_new/src/json_parsing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
+import './src/hn_bloc.dart';
 
 void main() {
-  runApp(const BasicApp());
+  final HackerNewsBloc hcBloc = HackerNewsBloc();
+  runApp(
+    BasicApp(
+      bloc: hcBloc,
+    ),
+  );
 }
 
 class BasicApp extends StatefulWidget {
-  const BasicApp({super.key});
+  final HackerNewsBloc bloc;
+  const BasicApp({super.key, required this.bloc});
 
   @override
   State<BasicApp> createState() => _BasicAppState();
 }
 
 class _BasicAppState extends State<BasicApp> {
+  int currentIndex = 0;
   // Get a list of ids
   Future<List<int>> _getTheListOfId() async {
     final url =
@@ -58,7 +68,6 @@ class _BasicAppState extends State<BasicApp> {
     _listOfId = _getTheListOfId();
     _newsList = _getTheListOfNews(_listOfId);
 
-    print(_newsList);
     super.didChangeDependencies();
   }
 
@@ -73,62 +82,99 @@ class _BasicAppState extends State<BasicApp> {
     // ignore: no_leading_underscores_for_local_identifiers
 
     return MaterialApp(
+      theme: ThemeData(
+        fontFamily: "Jost",
+        appBarTheme: const AppBarTheme(color: Colors.pink),
+      ),
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Hacker News '),
+        bottomNavigationBar: BottomNavigationBar(
+          onTap: (value) {
+            if (value == 0) {
+              widget.bloc.storiesType.add(StoriesType.topStories);
+              setState(() {
+                currentIndex = 0;
+              });
+            } else {
+              widget.bloc.storiesType.add(StoriesType.newStories);
+              setState(() {
+                currentIndex = 1;
+              });
+            }
+          },
+          elevation: 13,
+          backgroundColor: Colors.white,
+          currentIndex: currentIndex,
+          selectedIconTheme: const IconThemeData(color: Colors.pink),
+          selectedItemColor: Colors.pink,
+          items: const [
+            BottomNavigationBarItem(
+              label: "Top Stories",
+              icon: Icon(Icons.arrow_upward),
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.new_releases),
+              label: "New Stories",
+            ),
+          ],
         ),
-        body: FutureBuilder<List<News?>>(
-          future: _newsList,
+        appBar: AppBar(
+          title: const Text('HackerNews'),
+        ),
+        body: StreamBuilder<UnmodifiableListView<News>>(
+          stream: widget.bloc.news,
+          initialData: UnmodifiableListView<News>([]),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.done) {
+            if (snapshot.connectionState == ConnectionState.active &&
+                snapshot.data != null) {
               return ListView.builder(
                 itemBuilder: (context, index) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    return ExpansionTile(
-                      title: Text(
-                        snapshot.data![index]!.title!,
-                        style: const TextStyle(fontSize: 19),
-                      ),
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.symmetric(
-                            horizontal: 14,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                  "Comments : ${snapshot.data![index]!.descendants!}"),
-                              IconButton(
-                                  onPressed: () {
-                                    // ignore: avoid_print
-                                    // canLaunchUrl(Uri.parse(_newsList[index].url)).then((canRun) => print(canRun));
-                                    launchUrl(Uri.parse(
-                                      snapshot.data![index]!.url!,
-                                    ));
-                                  },
-                                  icon: (const Icon(Icons.launch)))
-                            ],
-                          ),
-                        )
-                      ],
-                    );
-                  } else {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: _customNewsWidget(snapshot.data![index]),
+                  );
                 },
-                itemCount: 10,
+                itemCount: snapshot.data!.length,
               );
             } else {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(),
               );
             }
           },
         ),
       ),
+    );
+  }
+
+  // Custom News Widget..............
+  Widget _customNewsWidget(News news) {
+    return ExpansionTile(
+      title: Text(
+        news.title!,
+        style: const TextStyle(fontSize: 19),
+      ),
+      children: [
+        Container(
+          margin: const EdgeInsets.symmetric(
+            horizontal: 14,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Comments : ${news.descendants!}"),
+              IconButton(
+                  onPressed: () {
+                    // ignore: avoid_print
+                    // canLaunchUrl(Uri.parse(_newsList[index].url)).then((canRun) => print(canRun));
+                    launchUrl(Uri.parse(
+                      news.url!,
+                    ));
+                  },
+                  icon: (const Icon(Icons.launch)))
+            ],
+          ),
+        )
+      ],
     );
   }
 }
