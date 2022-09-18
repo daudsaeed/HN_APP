@@ -39,11 +39,26 @@ class _BasicAppState extends State<BasicApp> {
     return null;
   }
 
-  late Future<List<int>> _listOfId;
+  Future<List<News?>> _getTheListOfNews(Future<List<int>> listOfIds) async {
+    final ids = await listOfIds;
+    List<News?> listOfNews = [];
+    var newsList = ids.map((id) async {
+      News? news = await _getTheNews(id);
+      listOfNews.add(news);
+      return news;
+    }).toList();
 
+    return listOfNews;
+  }
+
+  late Future<List<int>> _listOfId;
+  late Future<List<News?>> _newsList;
   @override
   void didChangeDependencies() {
     _listOfId = _getTheListOfId();
+    _newsList = _getTheListOfNews(_listOfId);
+
+    print(_newsList);
     super.didChangeDependencies();
   }
 
@@ -62,36 +77,49 @@ class _BasicAppState extends State<BasicApp> {
         appBar: AppBar(
           title: const Text('Hacker News '),
         ),
-        body: FutureBuilder<List<int>>(
-          future: _listOfId,
-
-          // For the IDS #################
+        body: FutureBuilder<List<News?>>(
+          future: _newsList,
           builder: (context, snapshot) {
-            if (snapshot.hasData) {
-              return ListView(
-                children: snapshot.data!.asMap().values.toList().map((e) {
-                  // For the News ...............
+            if (snapshot.connectionState == ConnectionState.done) {
+              return ListView.builder(
+                itemBuilder: (context, index) {
                   if (snapshot.connectionState == ConnectionState.done) {
-                    return FutureBuilder<News?>(
-                      future: _getTheNews(e),
-                      builder:
-                          (BuildContext context, AsyncSnapshot newsSnapshot) {
-                        if (newsSnapshot.connectionState ==
-                            ConnectionState.done) {
-                          return Text(newsSnapshot.data.title);
-                        } else {
-                          return const Center(
-                            child: CircularProgressIndicator(),
-                          );
-                        }
-                      },
+                    return ExpansionTile(
+                      title: Text(
+                        snapshot.data![index]!.title!,
+                        style: const TextStyle(fontSize: 19),
+                      ),
+                      children: [
+                        Container(
+                          margin: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                  "Comments : ${snapshot.data![index]!.descendants!}"),
+                              IconButton(
+                                  onPressed: () {
+                                    // ignore: avoid_print
+                                    // canLaunchUrl(Uri.parse(_newsList[index].url)).then((canRun) => print(canRun));
+                                    launchUrl(Uri.parse(
+                                      snapshot.data![index]!.url!,
+                                    ));
+                                  },
+                                  icon: (const Icon(Icons.launch)))
+                            ],
+                          ),
+                        )
+                      ],
                     );
                   } else {
                     return const Center(
                       child: CircularProgressIndicator(),
                     );
                   }
-                }).toList(),
+                },
+                itemCount: 10,
               );
             } else {
               return const Center(
