@@ -24,7 +24,7 @@ class BasicApp extends StatefulWidget {
 }
 
 class _BasicAppState extends State<BasicApp> {
-  int currentIndex = 0;
+  int _currentIndex = 0;
   // Get a list of ids
   Future<List<int>> _getTheListOfId() async {
     final url =
@@ -63,6 +63,7 @@ class _BasicAppState extends State<BasicApp> {
 
   late Future<List<int>> _listOfId;
   late Future<List<News?>> _newsList;
+
   @override
   void didChangeDependencies() {
     _listOfId = _getTheListOfId();
@@ -88,28 +89,26 @@ class _BasicAppState extends State<BasicApp> {
       ),
       home: Scaffold(
         bottomNavigationBar: BottomNavigationBar(
-          onTap: (value) {
-            if (value == 0) {
+          onTap: (index) {
+            if (index == 0) {
               widget.bloc.storiesType.add(StoriesType.topStories);
-              setState(() {
-                currentIndex = 0;
-              });
             } else {
               widget.bloc.storiesType.add(StoriesType.newStories);
-              setState(() {
-                currentIndex = 1;
-              });
             }
+            //  Setting the State......
+            setState(() {
+              _currentIndex = index;
+            });
           },
           elevation: 13,
           backgroundColor: Colors.white,
-          currentIndex: currentIndex,
+          currentIndex: _currentIndex,
           selectedIconTheme: const IconThemeData(color: Colors.pink),
           selectedItemColor: Colors.pink,
           items: const [
             BottomNavigationBarItem(
               label: "Top Stories",
-              icon: Icon(Icons.arrow_upward),
+              icon: Icon(Icons.arrow_drop_up),
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.new_releases),
@@ -119,34 +118,41 @@ class _BasicAppState extends State<BasicApp> {
         ),
         appBar: AppBar(
           title: const Text('HackerNews'),
+          leading: IsLoadingWidget(widget.bloc.isLoading),
         ),
         body: StreamBuilder<UnmodifiableListView<News>>(
           stream: widget.bloc.news,
           initialData: UnmodifiableListView<News>([]),
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.active &&
-                snapshot.data != null) {
-              return ListView.builder(
-                itemBuilder: (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: _customNewsWidget(snapshot.data![index]),
-                  );
-                },
-                itemCount: snapshot.data!.length,
-              );
-            } else {
-              return Center(
-                child: CircularProgressIndicator(),
-              );
-            }
+            return StreamBuilder(
+                stream: widget.bloc.isLoading,
+                builder:
+                    (BuildContext context, AsyncSnapshot<bool> snapshotBool) {
+                  if (snapshotBool.hasData && snapshotBool.data!) {
+                    print(snapshotBool);
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  } else {
+                    print(snapshotBool);
+                    return ListView.builder(
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: _customNewsWidget(snapshot.data![index]),
+                        );
+                      },
+                      itemCount: snapshot.data!.length,
+                    );
+                  }
+                });
           },
         ),
       ),
     );
   }
 
-  // Custom News Widget..............
+  // News Widget..............
   Widget _customNewsWidget(News news) {
     return ExpansionTile(
       title: Text(
@@ -176,5 +182,26 @@ class _BasicAppState extends State<BasicApp> {
         )
       ],
     );
+  }
+}
+
+//Custom IsloadingWidget ............
+class IsLoadingWidget extends StatelessWidget {
+  final Stream<bool> isLoading;
+
+  IsLoadingWidget(this.isLoading);
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder(
+        builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
+      if (snapshot.hasData && snapshot.data!) {
+        return const CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation(Colors.amber),
+          backgroundColor: Colors.amber,
+        );
+      } else {
+        return Container();
+      }
+    });
   }
 }
