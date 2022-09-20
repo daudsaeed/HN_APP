@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/material.dart';
 import 'package:hacker_new/src/json_parsing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import './src/hn_bloc.dart';
 
@@ -186,22 +187,55 @@ class _BasicAppState extends State<BasicApp> {
 }
 
 //Custom IsloadingWidget ............
-class IsLoadingWidget extends StatelessWidget {
+class IsLoadingWidget extends StatefulWidget {
   final Stream<bool> isLoading;
 
   IsLoadingWidget(this.isLoading);
+
+  @override
+  State<IsLoadingWidget> createState() => _IsLoadingWidgetState();
+}
+
+class _IsLoadingWidgetState extends State<IsLoadingWidget>
+    with TickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    //To manage the animation (object of animation) Default range 0.1 to 1.0
+    _controller = AnimationController(
+      //When offscreen resources wont be wasted on the animation tickproviderStateMixin is needed for it
+      vsync: this,
+      duration: const Duration(
+        seconds: 12,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        builder: (BuildContext context, AsyncSnapshot<bool> snapshot) {
-      if (snapshot.hasData && snapshot.data!) {
-        return const CircularProgressIndicator(
-          valueColor: AlwaysStoppedAnimation(Colors.amber),
-          backgroundColor: Colors.amber,
-        );
-      } else {
-        return Container();
-      }
-    });
+        stream: widget.isLoading,
+        builder: (BuildContext context, AsyncSnapshot snapshot) {
+          //To start the animation remember it will return the tickerFuture
+          if (snapshot.hasData && snapshot.data!) {
+            _controller.forward().then((value) => _controller.reverse());
+            return FadeTransition(
+              //Cause _controller only provide default range of 0.1 to 1.0 But we wanted to start from 0.5 opacity
+              //Tween is stateless doesnt store any state use animate to animate
+              opacity: Tween(begin: 0.2, end: 1.5).animate(
+                //By default animation is linear
+                CurvedAnimation(
+                  parent: _controller,
+                  curve: Curves.easeIn,
+                ),
+              ),
+              child: const Icon(FontAwesomeIcons.hackerNewsSquare),
+            );
+          } else {
+            return const Icon(FontAwesomeIcons.hackerNewsSquare);
+          }
+        });
   }
 }
